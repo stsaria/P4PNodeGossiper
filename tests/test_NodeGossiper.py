@@ -59,7 +59,7 @@ class TestNodeGossiper:
         await runner.begin()
 
         firstNode = _makeNode()
-        secondNode = _makeNode(port=11234)
+        secondNode = _makeNode(port=11235)
 
         assert await nodeGossiper.addNode(firstNode)
         assert not await nodeGossiper.addNode(secondNode)
