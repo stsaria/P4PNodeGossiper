@@ -60,9 +60,6 @@ class NodeGossiper:
         )
         inst._logger = await runner.getLogger("NodeGossiper")
 
-        for nodeIdentify in await inst._nodeStorage.getNodeIdentifies():
-            await inst._gossiper.addGossip(nodeIdentifyToBytes(nodeIdentify))
-
         await runner.eventsManager.registerListener(inst)
         
         return inst
