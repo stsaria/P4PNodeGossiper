@@ -15,8 +15,8 @@ from P4PNodeGossiper.protocol.Protocol import *
 from P4PNodeGossiper.util.NodeIdentifyConverter import nodeIdentifyToBytes
 
 BASE_PLUGIN_UUID_HEX = "27416bf84dbd4a448cc12adf238aa5f6"
-VERSION = version("P4PNodeGossiper")
-PLUGIN_UUID = uuid.uuid5(UUID(hex=BASE_PLUGIN_UUID_HEX), VERSION)
+PROTOCOL_VERSION = "1"
+PLUGIN_UUID = uuid.uuid5(UUID(hex=BASE_PLUGIN_UUID_HEX), PROTOCOL_VERSION)
 
 GOSSIP_SIZE =(
     NodeGossiperPacketElementSize.IP_ADDR_FAMILY
@@ -86,11 +86,18 @@ class NodeGossiper:
         deletedFromStorage = await self._nodeStorage.removeNode(nodeIdentify)
         deletedFromGossiper = await self._gossiper.deleteGossip(nodeIdentifyToBytes(nodeIdentify))
         return deletedFromStorage and deletedFromGossiper
+    
     async def getNodeIdentifies(self) -> set[NodeIdentify]:
         """
         Returns a list of all the nodes in the gossiper.
         """
         return await self._nodeStorage.getNodeIdentifies()
+
+    async def getAddrs(self) -> set[NodeIdentify]:
+        """
+        Returns a list of all the addrs of the nodes in the gossiper.
+        """
+        return await self._nodeStorage.getAddrs()
     
     @EventListener
     async def onNodeGossipRecved(self, event:NodeGossipRecvedEvent):
