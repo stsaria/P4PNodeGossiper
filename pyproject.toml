@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "P4PNodeGossiper"
+version = "0.1.0"
+description = "A gossiper for finding nodes"
+dependencies = [
+    "P4PCore @ git+https://github.com/stsaria/P4PCore.git@0.1.8"
+]
+license = { file = "LICENSE" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
