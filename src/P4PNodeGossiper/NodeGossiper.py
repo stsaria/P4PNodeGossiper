@@ -100,7 +100,7 @@ class NodeGossiper:
         return await self._nodeStorage.getAddrs()
     
     @EventListener
-    async def onNodeGossipRecved(self, event:NodeGossipRecvedEvent):
+    async def onNodeGossipRecved(self, event:NodeGossipRecvedEvent) -> None:
         """
         Event listener for when a node gossip is received.
         """
@@ -110,7 +110,7 @@ class NodeGossiper:
             return
         await self._nodeStorage.addNode(recvedNode)
     @EventListener
-    async def onNodeGossipDeletedByGc(self, event:NodeGossipDeletedByGcEvent):
+    async def onNodeGossipDeletedByGc(self, event:NodeGossipDeletedByGcEvent) -> None:
         """
         Event listener for when a node gossip is deleted by the garbage collector.
         """
