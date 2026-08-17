@@ -86,11 +86,18 @@ class NodeGossiper:
         deletedFromStorage = await self._nodeStorage.removeNode(nodeIdentify)
         deletedFromGossiper = await self._gossiper.deleteGossip(nodeIdentifyToBytes(nodeIdentify))
         return deletedFromStorage and deletedFromGossiper
+    
     async def getNodeIdentifies(self) -> set[NodeIdentify]:
         """
         Returns a list of all the nodes in the gossiper.
         """
         return await self._nodeStorage.getNodeIdentifies()
+
+    async def getAddrs(self) -> set[NodeIdentify]:
+        """
+        Returns a list of all the addrs of the nodes in the gossiper.
+        """
+        return await self._nodeStorage.getAddrs()
     
     @EventListener
     async def onNodeGossipRecved(self, event:NodeGossipRecvedEvent):
