@@ -15,8 +15,8 @@ from P4PNodeGossiper.protocol.Protocol import *
 from P4PNodeGossiper.util.NodeIdentifyConverter import nodeIdentifyToBytes
 
 BASE_PLUGIN_UUID_HEX = "27416bf84dbd4a448cc12adf238aa5f6"
-VERSION = version("P4PNodeGossiper")
-PLUGIN_UUID = uuid.uuid5(UUID(hex=BASE_PLUGIN_UUID_HEX), VERSION)
+PROTOCOL_VERSION = "1"
+PLUGIN_UUID = uuid.uuid5(UUID(hex=BASE_PLUGIN_UUID_HEX), PROTOCOL_VERSION)
 
 GOSSIP_SIZE =(
     NodeGossiperPacketElementSize.IP_ADDR_FAMILY
