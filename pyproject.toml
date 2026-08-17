@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "P4PNodeGossiper"
-version = "0.1.0"
+version = "0.1.0-1"
 description = "A gossiper for finding nodes"
 dependencies = [
     "pytest",
     "pytest-asyncio",
-    "P4PCore @ git+https://github.com/stsaria/P4PCore.git@0.1.8"
+    "P4PCore >= 0.1.8-2 @ git+https://github.com/stsaria/P4PCore.git@0.1.8"
 ]
 license = { file = "LICENSE" }
 
