@@ -145,7 +145,6 @@ class TestNodeGossiper:
         event = NodeGossipDeletedByGcEvent(garbage)
         await nodeGossiper.onNodeGossipDeletedByGc(event)
 
-        # Storage should be untouched since the payload didn't decode.
         assert node in await nodeGossiper.getNodeIdentifies()
 
         await runner.end()

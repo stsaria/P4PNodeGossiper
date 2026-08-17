@@ -120,21 +120,21 @@ class NodeGossiper:
             return
         await self._nodeStorage.removeNode(deletedNode)
 
-    async def sync(self):
+    async def sync(self) -> None:
         """
         Synchronize the gossiper with peers.
         This method is called periodically to ensure that the gossiper has the latest gossip messages from other peers in the network.
         """
         await self._gossiper.sync()
 
-    async def begin(self):
+    async def begin(self) -> None:
         """
         Start the gossiper's synchronization task.
         If you want to see details about the gossiper, you should only call NodeGossiper.sync.
         """
         await self._gossiper.begin()
 
-    async def end(self):
+    async def end(self) -> None:
         """
         End the gossiper's synchronization task.
         """
