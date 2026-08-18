@@ -39,7 +39,7 @@ class NodeGossiper:
         runner:P4PRunner,
         gossipTTLSeconds:int=5,
         syncPeerCountPerOneTime: int = 5,
-        syncIntervalSec: float = 5,
+        syncIntervalSeconds: float = 5,
         maximumNodesCount: int = 100
     ) -> "NodeGossiper":
         inst = cls()
@@ -55,7 +55,7 @@ class NodeGossiper:
             NodeGossipDeletedByGcEvent,
             gossipTTLSeconds=gossipTTLSeconds,
             syncPeerCountPerOneTime=syncPeerCountPerOneTime,
-            syncIntervalSec=syncIntervalSec,
+            syncIntervalSeconds=syncIntervalSeconds,
             maximumSavedDataCount=maximumNodesCount
         )
         inst._logger = await runner.getLogger("NodeGossiper")
