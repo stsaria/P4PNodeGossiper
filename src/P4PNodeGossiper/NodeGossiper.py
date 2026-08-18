@@ -1,4 +1,5 @@
 from importlib.metadata import version
+import logging
 import uuid
 from uuid import UUID
 
@@ -70,10 +71,12 @@ class NodeGossiper:
         """
         addedToStorage = await self._nodeStorage.addNode(nodeIdentify)
         if not addedToStorage:
+            self._logger.warning(f"Failed to add node to storage. nodeId:{nodeIdentifyToBytes(nodeIdentify).hex()}")
             return False
         addedToGossiper = await self._gossiper.addGossip(nodeIdentifyToBytes(nodeIdentify))
         if not addedToGossiper:
             await self._nodeStorage.removeNode(nodeIdentify)
+            self._logger.warning(f"Failed to add node to gossiper, rolled back. nodeId:{nodeIdentifyToBytes(nodeIdentify).hex()}")
             return False
         return True
     async def deleteNode(self, nodeIdentify:NodeIdentify) -> bool:
@@ -82,7 +85,12 @@ class NodeGossiper:
         """
         deletedFromStorage = await self._nodeStorage.removeNode(nodeIdentify)
         deletedFromGossiper = await self._gossiper.deleteGossip(nodeIdentifyToBytes(nodeIdentify))
-        return deletedFromStorage and deletedFromGossiper
+        if deletedFromStorage and deletedFromGossiper:
+            self._logger.info(f"Node deleted. nodeId:{nodeIdentifyToBytes(nodeIdentify).hex()}")
+            return True
+        else:
+            self._logger.warning(f"Partial deletion. nodeId:{nodeIdentifyToBytes(nodeIdentify).hex()} storage:{deletedFromStorage} gossiper:{deletedFromGossiper}")
+            return False
     
     async def getNodeIdentifies(self) -> set[NodeIdentify]:
         """
@@ -129,10 +137,12 @@ class NodeGossiper:
         Start the gossiper's synchronization task.
         If you want to see details about the gossiper, you should only call NodeGossiper.sync.
         """
+        self._logger.info("NodeGossiper sync task starting")
         await self._gossiper.begin()
 
     async def end(self) -> None:
         """
         End the gossiper's synchronization task.
         """
+        self._logger.info("NodeGossiper sync task stopping")
         await self._gossiper.end()
