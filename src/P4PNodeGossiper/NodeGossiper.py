@@ -8,6 +8,8 @@ from P4PCore.impledPlugin.Gossiper import Gossiper
 from P4PCore.protocol.Protocol import SecurePacketElementSize
 from P4PCore.manager.Events import EventListener
 from P4PCore.model.NodeIdentify import NodeIdentify
+from P4PCore.event.CalledBeginFunctionOfRunnerEvent import CalledBeginFunctionOfRunnerEvent
+from P4PCore.event.CalledEndFunctionOfRunnerEvent import CalledEndFunctionOfRunnerEvent
 
 from P4PNodeGossiper.manager.NodeStorage import NodeStorage
 from P4PNodeGossiper.event.NodeGossipDeletedByGcEvent import NodeGossipDeletedByGcEvent
@@ -28,7 +30,8 @@ GOSSIP_SIZE =(
 
 class NodeGossiper:
     """
-    A gossiper plugin that manages the gossiping of node information in a p2p network.
+    A gossiper plugin that manages the gossiping of node information
+    in a P2P network.
     """
     _nodeStorage:NodeStorage
     _gossiper:Gossiper
@@ -39,13 +42,28 @@ class NodeGossiper:
         cls,
         runner:P4PRunner,
         gossipTTLSeconds:int=5,
-        syncPeerCountPerOneTime: int = 5,
-        syncIntervalSeconds: float = 5,
-        maximumNodesCount: int = 100
+        syncNodeCountPerOneTime:int=5,
+        syncIntervalSeconds:float=5,
+        maximumNodesCount:int=100
     ) -> "NodeGossiper":
+        """
+        Create a new NodeGossiper instance.
+
+        :param runner: The P4PRunner instance to use for networking and
+            event management.
+        :param gossipTTLSeconds: The time-to-live for each node gossip
+            message in seconds.
+        :param syncNodeCountPerOneTime: The maximum number of nodes to
+            synchronize with in one synchronization.
+        :param syncIntervalSeconds: The interval between synchronization
+            attempts in seconds.
+        :param maximumNodesCount: The maximum number of nodes to store.
+        :return: An initialized NodeGossiper instance.
+        """
         inst = cls()
 
         inst._nodeStorage = NodeStorage()
+
         inst._gossiper = await Gossiper.create(
             runner,
             PLUGIN_UUID,
@@ -55,94 +73,203 @@ class NodeGossiper:
             NodeGossipRecvedEvent,
             NodeGossipDeletedByGcEvent,
             gossipTTLSeconds=gossipTTLSeconds,
-            syncPeerCountPerOneTime=syncPeerCountPerOneTime,
+            syncNodeCountPerOneTime=syncNodeCountPerOneTime,
             syncIntervalSeconds=syncIntervalSeconds,
-            maximumSavedDataCount=maximumNodesCount
+            maximumSavedDataCount=maximumNodesCount,
+            requiredGossip=nodeIdentifyToBytes(
+                NodeIdentify(
+                    ip="",
+                    port=0,
+                    hashableEd25519PublicKey=runner.ed25519Signer.publicKey
+                )
+            )
         )
-        inst._logger = await runner.getLogger("NodeGossiper")
 
+        inst._logger = await runner.getLogger("NodeGossiper")
         await runner.eventsManager.registerListener(inst)
-        
+
         return inst
-    
+
     async def addNode(self, nodeIdentify:NodeIdentify) -> bool:
         """
-        Adds a node to the gossiper and the storage.
+        Add a node to the gossiper and node storage.
+
+        If adding the gossip fails after the node has been added to storage,
+        the storage operation is rolled back.
+
+        :param nodeIdentify: The NodeIdentify object of the node to add.
+        :return: True if the node was added successfully; otherwise False.
         """
-        addedToStorage = await self._nodeStorage.addNode(nodeIdentify)
-        if not addedToStorage:
-            self._logger.warning(f"Failed to add node to storage. nodeId:{nodeIdentifyToBytes(nodeIdentify).hex()}")
+        if not await self._nodeStorage.addNode(nodeIdentify):
+            self._logger.debug(
+                "Node already exists. nodeId:%s",
+                nodeIdentifyToBytes(nodeIdentify).hex()
+            )
             return False
-        addedToGossiper = await self._gossiper.addGossip(nodeIdentifyToBytes(nodeIdentify))
-        if not addedToGossiper:
+
+        if not await self._gossiper.addGossip(
+            nodeIdentifyToBytes(nodeIdentify),
+            nodeIdentify.addr
+        ):
             await self._nodeStorage.removeNode(nodeIdentify)
-            self._logger.warning(f"Failed to add node to gossiper, rolled back. nodeId:{nodeIdentifyToBytes(nodeIdentify).hex()}")
+            self._logger.warning(
+                "Failed to add node to gossiper, rolled back. nodeId:%s",
+                nodeIdentifyToBytes(nodeIdentify).hex()
+            )
             return False
+
         return True
+
     async def deleteNode(self, nodeIdentify:NodeIdentify) -> bool:
         """
-        Deletes a node from the gossiper and the storage.
+        Remove a node from the gossiper and node storage.
+
+        :param nodeIdentify: The NodeIdentify object of the node to remove.
+        :return: True if the node was removed from both storage and the
+            gossiper; otherwise False.
         """
         deletedFromStorage = await self._nodeStorage.removeNode(nodeIdentify)
-        deletedFromGossiper = await self._gossiper.deleteGossip(nodeIdentifyToBytes(nodeIdentify))
+        deletedFromGossiper = await self._gossiper.deleteGossip(
+            nodeIdentifyToBytes(nodeIdentify)
+        )
+
         if deletedFromStorage and deletedFromGossiper:
-            self._logger.info(f"Node deleted. nodeId:{nodeIdentifyToBytes(nodeIdentify).hex()}")
+            self._logger.info(
+                "Node deleted. nodeId:%s",
+                nodeIdentifyToBytes(nodeIdentify).hex()
+            )
             return True
         else:
-            self._logger.warning(f"Partial deletion. nodeId:{nodeIdentifyToBytes(nodeIdentify).hex()} storage:{deletedFromStorage} gossiper:{deletedFromGossiper}")
+            self._logger.warning(
+                "Partial deletion. nodeId:%s storage:%s gossiper:%s",
+                nodeIdentifyToBytes(nodeIdentify).hex(),
+                deletedFromStorage,
+                deletedFromGossiper
+            )
             return False
-    
+
     async def getNodeIdentifies(self) -> set[NodeIdentify]:
         """
-        Returns a list of all the nodes in the gossiper.
+        Return all NodeIdentify objects currently stored by the gossiper.
+
+        :return: A set of NodeIdentify objects.
         """
         return await self._nodeStorage.getNodeIdentifies()
 
     async def getAddrs(self) -> set[NodeIdentify]:
         """
-        Returns a list of all the addrs of the nodes in the gossiper.
+        Return the addresses of all nodes currently stored by the gossiper.
+
+        :return: A collection of node addresses.
         """
         return await self._nodeStorage.getAddrs()
-    
+
     @EventListener
-    async def onNodeGossipRecved(self, event:NodeGossipRecvedEvent) -> None:
+    async def onNodeGossipRecved(
+        self,
+        event:NodeGossipRecvedEvent
+    ) -> None:
         """
-        Event listener for when a node gossip is received.
+        Handle a received node gossip event.
+
+        If the received gossip contains only the sender's public key,
+        the sender's address is taken from the received event address.
+
+        :param event: The NodeGossipRecvedEvent containing the received
+            node gossip and sender address.
+        :return: None.
         """
         recvedNode = event.recvedNode
+
         if recvedNode is None:
-            self._logger.warning(f"Recved invalid node gossip. gossipContent:{str(event._gossipContent)}")
+            self._logger.warning(
+                "Recved invalid node gossip. gossipContent:%s",
+                str(event._gossipContent)
+            )
             return
-        await self._nodeStorage.addNode(recvedNode)
+
+        elif not (recvedNode.ip and recvedNode.port):
+            # sender's info
+            recvedNode = NodeIdentify(
+                ip=event.addr[0],
+                port=event.addr[1],
+                hashableEd25519PublicKey=recvedNode.hashableEd25519PublicKey
+            )
+
+        await self.addNode(recvedNode)
+
+        self._logger.debug(
+            "Node gossip recved. and try to add nodeId:%s",
+            nodeIdentifyToBytes(recvedNode).hex()
+        )
+
     @EventListener
-    async def onNodeGossipDeletedByGc(self, event:NodeGossipDeletedByGcEvent) -> None:
+    async def onNodeGossipDeletedByGc(
+        self,
+        event:NodeGossipDeletedByGcEvent
+    ) -> None:
         """
-        Event listener for when a node gossip is deleted by the garbage collector.
+        Handle a node gossip garbage-collection event.
+
+        If the deleted gossip cannot be converted to a valid NodeIdentify,
+        the event is ignored.
+
+        :param event: The NodeGossipDeletedByGcEvent containing the deleted
+            node gossip.
+        :return: None.
         """
         deletedNode = event.deletedNode
+
         if deletedNode is None:
-            self._logger.warning(f"Deleted invalid node gossip. gossipContent:{str(event._gossipContent)}")
+            self._logger.warning(
+                "Deleted invalid node gossip. gossipContent:%s",
+                str(event._gossipContent)
+            )
             return
+
         await self._nodeStorage.removeNode(deletedNode)
+
+        self._logger.debug(
+            "Node gossip deleted by GC. nodeId:%s",
+            nodeIdentifyToBytes(deletedNode).hex()
+        )
 
     async def sync(self) -> None:
         """
-        Synchronize the gossiper with peers.
-        This method is called periodically to ensure that the gossiper has the latest gossip messages from other peers in the network.
+        Synchronize node gossip with other nodes in the network.
+
+        This performs a single synchronization operation using the underlying
+        Gossiper.
+
+        :return: None.
         """
         await self._gossiper.sync()
 
-    async def begin(self) -> None:
+    @EventListener
+    async def onBegin(
+        self,
+        _:CalledBeginFunctionOfRunnerEvent
+    ) -> None:
         """
-        Start the gossiper's synchronization task.
-        If you want to see details about the gossiper, you should only call NodeGossiper.sync.
+        Handle the runner begin event and start the gossip synchronization
+        task.
+
+        :param _: The CalledBeginFunctionOfRunnerEvent.
+        :return: None.
         """
-        self._logger.info("NodeGossiper sync task starting")
+        self._logger.info("NodeGossiper sync task starting.")
         await self._gossiper.begin()
 
-    async def end(self) -> None:
+    @EventListener
+    async def onEnd(
+        self,
+        _:CalledEndFunctionOfRunnerEvent
+    ) -> None:
         """
-        End the gossiper's synchronization task.
+        Handle the runner end event and stop the gossip synchronization task.
+
+        :param _: The CalledEndFunctionOfRunnerEvent.
+        :return: None.
         """
-        self._logger.info("NodeGossiper sync task stopping")
+        self._logger.info("NodeGossiper sync task stopping.")
         await self._gossiper.end()

@@ -154,12 +154,10 @@ class TestNodeGossiper:
         runner = await P4PRunner.create()
         nodeGossiper = await NodeGossiper.create(runner)
         await runner.begin()
-        await nodeGossiper._gossiper.begin()
-
+        
         runner2 = await P4PRunner.create()
         nodeGossiper2 = await NodeGossiper.create(runner2)
         await runner2.begin()
-        await nodeGossiper2._gossiper.begin()
 
         await asyncio.sleep(0)
 
