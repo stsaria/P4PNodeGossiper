@@ -7,7 +7,7 @@ name = "P4PNodeGossiper"
 dynamic = ["version"]
 description = "A gossiper for finding nodes"
 dependencies = [
-    "P4PCore @ git+https://github.com/stsaria/P4PCore.git@0.2.0"
+    "P4PCore @ git+https://github.com/stsaria/P4PCore.git@main"
 ]
 license = { file = "LICENSE" }
 requires-python = ">=3.13"
