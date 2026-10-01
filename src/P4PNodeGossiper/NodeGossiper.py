@@ -250,13 +250,6 @@ class NodeGossiper:
         self,
         _:CalledBeginFunctionOfRunnerEvent
     ) -> None:
-        """
-        Handle the runner begin event and start the gossip synchronization
-        task.
-
-        :param _: The CalledBeginFunctionOfRunnerEvent.
-        :return: None.
-        """
         self._logger.info("NodeGossiper sync task starting.")
         await self._gossiper.begin()
 
@@ -265,11 +258,5 @@ class NodeGossiper:
         self,
         _:CalledEndFunctionOfRunnerEvent
     ) -> None:
-        """
-        Handle the runner end event and stop the gossip synchronization task.
-
-        :param _: The CalledEndFunctionOfRunnerEvent.
-        :return: None.
-        """
         self._logger.info("NodeGossiper sync task stopping.")
         await self._gossiper.end()
