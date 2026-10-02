@@ -44,7 +44,8 @@ class NodeGossiper:
         gossipTTLSeconds:int=5,
         syncNodeCountPerOneTime:int=5,
         syncIntervalSeconds:float=5,
-        maximumNodesCount:int=100
+        maximumNodesCount:int=100,
+        minimumNodesCount:int=20
     ) -> "NodeGossiper":
         """
         Create a new NodeGossiper instance.
@@ -52,12 +53,13 @@ class NodeGossiper:
         :param runner: The P4PRunner instance to use for networking and
             event management.
         :param gossipTTLSeconds: The time-to-live for each node gossip
-            message in seconds.
+            message in seconds (> 0).
         :param syncNodeCountPerOneTime: The maximum number of nodes to
-            synchronize with in one synchronization.
+            synchronize with in one synchronization (> 0).
         :param syncIntervalSeconds: The interval between synchronization
-            attempts in seconds.
-        :param maximumNodesCount: The maximum number of nodes to store.
+            attempts in seconds (>= 0).
+        :param maximumNodesCount: The maximum number of nodes to store (> 0).
+        :param minimumNodesCount: The minimum number of nodes to store (>= 0).
         :return: An initialized NodeGossiper instance.
         """
         inst = cls()
@@ -76,6 +78,7 @@ class NodeGossiper:
             syncNodeCountPerOneTime=syncNodeCountPerOneTime,
             syncIntervalSeconds=syncIntervalSeconds,
             maximumSavedDataCount=maximumNodesCount,
+            minimumSavedDataCount=minimumNodesCount,
             requiredGossip=nodeIdentifyToBytes(
                 NodeIdentify(
                     ip="",
@@ -112,7 +115,7 @@ class NodeGossiper:
             nodeIdentify.addr
         ):
             await self._nodeStorage.removeNode(nodeIdentify)
-            self._logger.warning(
+            self._logger.debug(
                 "Failed to add node to gossiper, rolled back. nodeId:%s",
                 nodeIdentifyToBytes(nodeIdentify).hex()
             )
@@ -250,13 +253,6 @@ class NodeGossiper:
         self,
         _:CalledBeginFunctionOfRunnerEvent
     ) -> None:
-        """
-        Handle the runner begin event and start the gossip synchronization
-        task.
-
-        :param _: The CalledBeginFunctionOfRunnerEvent.
-        :return: None.
-        """
         self._logger.info("NodeGossiper sync task starting.")
         await self._gossiper.begin()
 
@@ -265,11 +261,5 @@ class NodeGossiper:
         self,
         _:CalledEndFunctionOfRunnerEvent
     ) -> None:
-        """
-        Handle the runner end event and stop the gossip synchronization task.
-
-        :param _: The CalledEndFunctionOfRunnerEvent.
-        :return: None.
-        """
         self._logger.info("NodeGossiper sync task stopping.")
         await self._gossiper.end()
