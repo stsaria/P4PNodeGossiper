@@ -89,7 +89,7 @@ jobs:
 
       - name: Install package and pdoc
         run: |
-          pip install git+https://github.com/stsaria/P4PCore.git@d
+          pip install git+https://github.com/stsaria/P4PCore.git@main
           python -m pip install --upgrade pip
           pip install -e "."
           pip install pdoc
