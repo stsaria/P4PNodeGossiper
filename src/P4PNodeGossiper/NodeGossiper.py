@@ -11,6 +11,7 @@ from P4PCore.model.NodeIdentify import NodeIdentify
 from P4PCore.event.CalledBeginFunctionOfRunnerEvent import CalledBeginFunctionOfRunnerEvent
 from P4PCore.event.CalledEndFunctionOfRunnerEvent import CalledEndFunctionOfRunnerEvent
 
+from P4PNodeGossiper.manager.AlivedNodes import AlivedNodes
 from P4PNodeGossiper.manager.NodeStorage import NodeStorage
 from P4PNodeGossiper.event.NodeGossipDeletedByGcEvent import NodeGossipDeletedByGcEvent
 from P4PNodeGossiper.event.NodeGossipRecvedEvent import NodeGossipRecvedEvent
@@ -33,9 +34,12 @@ class NodeGossiper:
     A gossiper plugin that manages the gossiping of node information
     in a P2P network.
     """
+    _runner:P4PRunner
     _nodeStorage:NodeStorage
     _gossiper:Gossiper
     _logger:Logger
+    _pingTimeoutSeconds:float
+    _alivedNodes:AlivedNodes
 
     @classmethod
     async def create(
@@ -45,7 +49,9 @@ class NodeGossiper:
         syncNodeCountPerOneTime:int=5,
         syncIntervalSeconds:float=5,
         maximumNodesCount:int=100,
-        minimumNodesCount:int=20
+        minimumNodesCount:int=20,
+        pingTimeoutSeconds:float=1.0,
+        aliveTimeSeconds:float=30.0
     ) -> "NodeGossiper":
         """
         Create a new NodeGossiper instance.
@@ -60,10 +66,18 @@ class NodeGossiper:
             attempts in seconds (>= 0).
         :param maximumNodesCount: The maximum number of nodes to store (> 0).
         :param minimumNodesCount: The minimum number of nodes to store (>= 0).
+        :param pingTimeoutSeconds: The timeout for pinging nodes in seconds (> 0).
+        :param aliveTimeSeconds: The time a node is considered alive in seconds (> 0).
         :return: An initialized NodeGossiper instance.
         """
         inst = cls()
 
+        if pingTimeoutSeconds <= 0:
+            raise ValueError("pingTimeoutSeconds > 0")
+        elif aliveTimeSeconds <= 0:
+            raise ValueError("aliveTimeSeconds > 0")
+
+        inst._runner = runner
         inst._nodeStorage = NodeStorage()
 
         inst._gossiper = await Gossiper.create(
@@ -90,6 +104,12 @@ class NodeGossiper:
 
         inst._logger = await runner.getLogger("NodeGossiper")
         await runner.eventsManager.registerListener(inst)
+
+        inst._alivedNodes = AlivedNodes(
+            runner,
+            pingPongTimeoutSeconds=pingTimeoutSeconds,
+            aliveTimeSeconds=aliveTimeSeconds
+        )
 
         return inst
 
@@ -172,16 +192,6 @@ class NodeGossiper:
         self,
         event:NodeGossipRecvedEvent
     ) -> None:
-        """
-        Handle a received node gossip event.
-
-        If the received gossip contains only the sender's public key,
-        the sender's address is taken from the received event address.
-
-        :param event: The NodeGossipRecvedEvent containing the received
-            node gossip and sender address.
-        :return: None.
-        """
         recvedNode = event.recvedNode
 
         if recvedNode is None:
@@ -199,8 +209,14 @@ class NodeGossiper:
                 hashableEd25519PublicKey=recvedNode.hashableEd25519PublicKey
             )
 
+        if not await self._alivedNodes.checkAndUpdateAlive(recvedNode.addr):
+            self._logger.debug(
+                "Node gossip recved but node is not alive. nodeId:%s",
+                nodeIdentifyToBytes(recvedNode).hex()
+            )
+            return
+        
         await self.addNode(recvedNode)
-
         self._logger.debug(
             "Node gossip recved. and try to add nodeId:%s",
             nodeIdentifyToBytes(recvedNode).hex()
@@ -211,16 +227,6 @@ class NodeGossiper:
         self,
         event:NodeGossipDeletedByGcEvent
     ) -> None:
-        """
-        Handle a node gossip garbage-collection event.
-
-        If the deleted gossip cannot be converted to a valid NodeIdentify,
-        the event is ignored.
-
-        :param event: The NodeGossipDeletedByGcEvent containing the deleted
-            node gossip.
-        :return: None.
-        """
         deletedNode = event.deletedNode
 
         if deletedNode is None:
