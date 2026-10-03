@@ -93,14 +93,21 @@ class TestNodeGossiper:
     @pytest.mark.asyncio
     async def testOnNodeGossipRecvedAddsValidNodeToStorage(self):
         runner = await P4PRunner.create()
-        nodeGossiper = await NodeGossiper.create(runner)
+
+        runner2 = await P4PRunner.create()
+        nodeGossiper2 = await NodeGossiper.create(runner2)
         await runner.begin()
+        await runner2.begin()
 
-        node = _makeNode()
-        event = NodeGossipRecvedEvent(nodeIdentifyToBytes(node), ("127.0.0.1", 9999))
-        await nodeGossiper.onNodeGossipRecved(event)
 
-        assert node in await nodeGossiper.getNodeIdentifies()
+        addr = runner._net._protocolV4.transport.get_extra_info("sockname")
+        node = NodeIdentify(ip = addr[0], port = addr[1], hashableEd25519PublicKey=runner.ed25519Signer.publicKey)
+        event = NodeGossipRecvedEvent(nodeIdentifyToBytes(node), node.addr)
+        await nodeGossiper2.onNodeGossipRecved(event)
+
+        await asyncio.sleep(0.1)
+
+        assert node in await nodeGossiper2.getNodeIdentifies()
 
     @pytest.mark.asyncio
     async def testOnNodeGossipRecvedIgnoresInvalidData(self):
@@ -161,7 +168,8 @@ class TestNodeGossiper:
 
         await asyncio.sleep(0)
 
-        node = _makeNode()
+        addr = runner2._net._protocolV4.transport.get_extra_info("sockname")
+        node = NodeIdentify(ip = addr[0], port = addr[1], hashableEd25519PublicKey=runner2.ed25519Signer.publicKey)
         await nodeGossiper2.addNode(node)
 
         nodeGossiper2._gossiper._gossip(
