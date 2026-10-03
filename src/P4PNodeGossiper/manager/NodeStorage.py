@@ -3,15 +3,15 @@ from P4PCore.model.NodeIdentify import NodeIdentify
 
 class NodeStorage:
     def __init__(self):
-        self.manager:SimpleSetManager[NodeIdentify] = SimpleSetManager()
+        self._manager:SimpleSetManager[NodeIdentify] = SimpleSetManager()
 
-    async def getAddrs(self):
+    async def getAddrs(self) -> set[tuple[str, int]]:
         """
         Return the addresses of all nodes currently stored.
 
         :return: A list of node addresses.
         """
-        nodes = await self.manager.getAll()
+        nodes = await self._manager.getAll()
 
         return [node.addr for node in nodes]
 
@@ -22,7 +22,7 @@ class NodeStorage:
         :param node: The NodeIdentify object to add.
         :return: True if the node was added successfully; otherwise False.
         """
-        return await self.manager.add(node)
+        return await self._manager.add(node)
 
     async def removeNode(self, node:NodeIdentify) -> bool:
         """
@@ -31,12 +31,12 @@ class NodeStorage:
         :param node: The NodeIdentify object to remove.
         :return: True if the node was removed successfully; otherwise False.
         """
-        return await self.manager.remove(node)
+        return await self._manager.remove(node)
 
-    async def getNodeIdentifies(self):
+    async def getNodeIdentifies(self) -> set[NodeIdentify]:
         """
         Return all NodeIdentify objects currently stored.
 
         :return: A list of NodeIdentify objects.
         """
-        return await self.manager.getAll()
+        return await self._manager.getAll()
