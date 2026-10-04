@@ -1,4 +1,5 @@
 # P4PNodeGossiper
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/stsaria/P4PCore)
 P4PNodeGossiper is a wrapper around the P4PCore's gossip module, P4PCore.impledPlugin.Gossiper, specifically designed for node information sharing.
 Gossip operations are performed non-encrypted based on P4PCore's Gossiper.
 
